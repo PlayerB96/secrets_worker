@@ -65,9 +65,8 @@
 			<p id="statusMessage" class="status-message">Listo para consultar.</p>
 			<div id="secretValueCard" class="secret-value-card hidden">
 				<div class="secret-value-toolbar">
-					<span class="secret-value-label">Secret value</span>
 					<div class="toolbar-actions">
-						<button type="button" id="pasteSecretDisplay" class="btn-tool">Pegar</button>
+						<button type="button" id="updateSecretDisplay" class="btn-tool btn-update">Actualizar</button>
 						<button type="button" id="copySecretDisplay" class="btn-tool">Copiar</button>
 					</div>
 				</div>
@@ -179,7 +178,7 @@
 		const statusMessage = document.getElementById("statusMessage");
 		const secretValueCard = document.getElementById("secretValueCard");
 		const secretValueDisplay = document.getElementById("secretValueDisplay");
-		const pasteSecretDisplay = document.getElementById("pasteSecretDisplay");
+		const updateSecretDisplay = document.getElementById("updateSecretDisplay");
 		const copySecretDisplay = document.getElementById("copySecretDisplay");
 		const pasteRegisterValue = document.getElementById("pasteRegisterValue");
 		const sessionTimer = document.getElementById("sessionTimer");
@@ -190,6 +189,7 @@
 		let sessionIntervalId = null;
 		let isSessionActive = false;
 		let sessionMasterKey = "";
+		let lastFetchedSecretName = "";
 
 		const clearMasterKeyFromDom = () => {
 			masterInput.value = "";
@@ -217,6 +217,7 @@
 		const hideSecretValueCard = () => {
 			secretValueCard.classList.add("hidden");
 			secretValueDisplay.value = "";
+			lastFetchedSecretName = "";
 		};
 
 		const pasteFromClipboard = async (target) => {
@@ -273,7 +274,68 @@
 
 		[masterInput, secretNameInput, registerSecretNameInput, secretValueInput, secretValueDisplay].forEach(preventInputCache);
 
-		pasteSecretDisplay.addEventListener("click", () => pasteFromClipboard(secretValueDisplay));
+		updateSecretDisplay.addEventListener("click", async () => {
+			if (!isSessionActive || !sessionMasterKey) {
+				setStatus("Sesion bloqueada. Vuelve a validar la Master Key.", "error");
+				return;
+			}
+			if (!lastFetchedSecretName) {
+				statusMessage.textContent = "Primero obtiene un secret para poder actualizarlo.";
+				secretOutput.classList.add("error");
+				return;
+			}
+
+			const secretValue = secretValueDisplay.value.trim();
+			if (!secretValue) {
+				statusMessage.textContent = "El valor no puede estar vacio.";
+				secretOutput.classList.add("error");
+				return;
+			}
+
+			updateSecretDisplay.disabled = true;
+			statusMessage.textContent = "Actualizando secret...";
+			secretOutput.classList.add("pending");
+
+			try {
+				const resp = await fetch("/update-secret", {
+					...NO_STORE_FETCH,
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						masterKey: sessionMasterKey,
+						secretName: lastFetchedSecretName,
+						secretValue
+					})
+				});
+
+				const message = (await resp.text()).trim() || "Sin detalle de error.";
+
+				if (!resp.ok) {
+					if (resp.status === 403) {
+						if (message.includes("Master Key")) {
+							lockSession("Master Key incorrecta");
+							return;
+						}
+					}
+					statusMessage.textContent = `Error ${resp.status}: ${message}`;
+					secretOutput.classList.remove("pending", "success");
+					secretOutput.classList.add("error");
+					updateSecretDisplay.disabled = false;
+					return;
+				}
+
+				statusMessage.textContent = message;
+				secretOutput.classList.remove("pending", "error");
+				secretOutput.classList.add("success");
+				updateSecretDisplay.disabled = false;
+			} catch (err) {
+				statusMessage.textContent = `Error de red: ${err instanceof Error ? err.message : "No se pudo actualizar."}`;
+				secretOutput.classList.remove("pending", "success");
+				secretOutput.classList.add("error");
+				updateSecretDisplay.disabled = false;
+			}
+		});
+
 		copySecretDisplay.addEventListener("click", async () => {
 			const text = secretValueDisplay.value;
 			if (!text) {
@@ -334,8 +396,9 @@
 			}
 		};
 
-		const showSecretValue = (value) => {
-			statusMessage.textContent = "Secret value:";
+		const showSecretValue = (secretName, value) => {
+			lastFetchedSecretName = secretName;
+			statusMessage.textContent = `Secret value (${secretName}):`;
 			statusMessage.classList.remove("hidden");
 			secretValueDisplay.value = value;
 			secretValueCard.classList.remove("hidden");
@@ -495,7 +558,7 @@
 					return;
 				}
 
-				showSecretValue(message);
+				showSecretValue(secretName, message);
 			} catch (err) {
 				setStatus(`Error de red: ${err instanceof Error ? err.message : "No se pudo completar la solicitud."}`, "error");
 			}

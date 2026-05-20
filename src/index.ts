@@ -152,6 +152,46 @@ export default {
 			}
 		}
 
+		if (url.pathname === '/update-secret' && request.method === 'POST') {
+			try {
+				const data = (await request.json()) as {
+					masterKey?: string;
+					secretName?: string;
+					secretValue?: string;
+				};
+
+				const authError = validateMasterKey(data.masterKey);
+				if (authError) return authError;
+
+				if (!secrets.SECRETS_KV) {
+					return new Response('Almacen KV no configurado en el Worker', { status: 500 });
+				}
+
+				const secretName = normalizeSecretName(data.secretName ?? '');
+				if (!secretName) {
+					return new Response('Nombre de secret invalido o reservado', { status: 400 });
+				}
+
+				const secretValue = data.secretValue?.trim();
+				if (!secretValue) {
+					return new Response('Valor de secret requerido', { status: 400 });
+				}
+
+				const kvValue = await readKvSecret(secretName);
+				if (kvValue === null) {
+					if (resolveSecretKey(secretName)) {
+						return new Response('Los secrets del Worker no se pueden actualizar desde aqui', { status: 403 });
+					}
+					return new Response('Secret no encontrado en KV', { status: 404 });
+				}
+
+				await secrets.SECRETS_KV.put(secretName, secretValue);
+				return new Response(`Secret "${secretName}" actualizado correctamente`, { status: 200 });
+			} catch {
+				return new Response('Error procesando request', { status: 400 });
+			}
+		}
+
 		if (url.pathname === '/list-secrets' && request.method === 'POST') {
 			try {
 				const data = (await request.json()) as { masterKey?: string };

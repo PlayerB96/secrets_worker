@@ -512,6 +512,17 @@ button:disabled {
 	background: rgba(15, 143, 127, 0.12);
 }
 
+.btn-update {
+	border-color: rgba(30, 99, 148, 0.45);
+	background: linear-gradient(135deg, #2a7ab8, #1e6394);
+	color: #ffffff;
+}
+
+.btn-update:hover {
+	background: linear-gradient(135deg, #3389c9, #256fa8);
+	color: #ffffff;
+}
+
 @media (max-width: 659px) {
 	.value-field-wrap {
 		grid-template-columns: 1fr;
