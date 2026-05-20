@@ -1,32 +1,600 @@
 <!doctype html>
 <html lang="en">
-	<head>
-		<meta charset="UTF-8" />
-		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
-		<title>Hello, World!</title>
-	</head>
-	<body>
-		<h1 id="heading"></h1>
-		<p>This page comes from a static asset stored at `public/index.html` as configured in `wrangler.jsonc`.</p>
-		<button id="button" type="button">Fetch a random UUID</button>
-		<output id="random" for="button"></output>
-		<script>
-			fetch('/message')
-				.then((resp) => resp.text())
-				.then((text) => {
-					const h1 = document.getElementById('heading');
-					h1.textContent = text;
+<head>
+	<meta charset="UTF-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+	<meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate" />
+	<meta http-equiv="Pragma" content="no-cache" />
+	<title>Secrets Viewer</title>
+	<link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+	<main class="card">
+		<header class="brandHeader section" data-delay="1">
+			<div class="brandTitleRow">
+				<svg class="lockIcon" viewBox="0 0 24 24" role="img" aria-label="Seguridad" xmlns="http://www.w3.org/2000/svg">
+					<path d="M7.5 10V7.75a4.5 4.5 0 0 1 9 0V10" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" />
+					<rect x="5" y="10" width="14" height="10" rx="2.5" fill="none" stroke="currentColor" stroke-width="1.8" />
+					<circle cx="12" cy="15" r="1.35" fill="currentColor" />
+				</svg>
+				<strong class="brandTitle">SECRETS LANUMERO</strong>
+			</div>
+
+			<div class="brandLogos">
+				<div class="brandItem">
+					<img src="/assets/cloudflare_logo_icon_170372.webp" alt="Cloudflare" class="brandLogo brandLogo-cloudflare" />
+					<span class="brandLabel">Cloudflare Secrets</span>
+				</div>
+				<div class="brandBridge" aria-hidden="true">
+					<span class="packet"></span>
+					<span class="packet packet-delay"></span>
+				</div>
+				<div class="brandItem">
+					<img src="/assets/logoln1.png" alt="Lanumerouno" class="brandLogo brandLogo-company" />
+					<span class="brandLabel">Lanumerouno</span>
+				</div>
+			</div>
+			<p class="brandText">Validacion de Cloudflare Secrets para la empresa Lanumerouno</p>
+		</header>
+		<p class="subtitle">Consulta secretos de forma segura y recibe mensajes de error reales del Worker.</p>
+
+		<section class="section" data-delay="1">
+			<form id="masterKeyForm" class="no-cache-form" autocomplete="off" novalidate>
+				<input type="text" class="decoy-field" tabindex="-1" autocomplete="off" aria-hidden="true" />
+				<label for="masterKey">Master Key</label>
+				<div class="row">
+					<input
+						type="password"
+						id="masterKey"
+						placeholder="Ingresa la Master Key"
+						autocomplete="new-password"
+						autocorrect="off"
+						autocapitalize="off"
+						spellcheck="false"
+						data-lpignore="true"
+						data-1p-ignore="true"
+						data-form-type="other"
+					/>
+					<button id="verifyKey" type="button">Verificar</button>
+				</div>
+			</form>
+			<p id="sessionTimer" class="timer hidden" aria-live="polite">Tiempo restante: 60s</p>
+		</section>
+
+		<div id="secretOutput" class="status section" aria-live="polite" data-delay="2">
+			<p id="statusMessage" class="status-message">Listo para consultar.</p>
+			<div id="secretValueCard" class="secret-value-card hidden">
+				<div class="secret-value-toolbar">
+					<span class="secret-value-label">Secret value</span>
+					<div class="toolbar-actions">
+						<button type="button" id="pasteSecretDisplay" class="btn-tool">Pegar</button>
+						<button type="button" id="copySecretDisplay" class="btn-tool">Copiar</button>
+					</div>
+				</div>
+				<textarea
+					id="secretValueDisplay"
+					class="secret-scroll-field"
+					spellcheck="false"
+					autocomplete="off"
+					placeholder="El valor del secret aparecera aqui"
+				></textarea>
+			</div>
+		</div>
+
+		<section id="secretSection" class="section" data-delay="2">
+			<nav id="appNav" class="app-nav hidden" role="tablist" aria-label="Acciones de secrets">
+				<button type="button" class="nav-tab active" data-view="obtener" role="tab" aria-selected="true" aria-controls="viewObtener">Obtener</button>
+				<button type="button" class="nav-tab" data-view="registrar" role="tab" aria-selected="false" aria-controls="viewRegistrar">Registrar</button>
+				<button type="button" class="nav-tab" data-view="listar" role="tab" aria-selected="false" aria-controls="viewListar">Listar</button>
+			</nav>
+
+			<div id="viewObtener" class="view-panel panel panel-primary" role="tabpanel">
+				<h2 class="panelTitle">Consultar secret</h2>
+				<form id="fetchSecretForm" class="no-cache-form" autocomplete="off" novalidate>
+					<input type="text" class="decoy-field" tabindex="-1" autocomplete="off" aria-hidden="true" />
+					<label for="secretName">Nombre del Secret</label>
+					<input
+						type="text"
+						id="secretName"
+						placeholder="Ej: MINIO_SECRET"
+						autocomplete="off"
+						autocorrect="off"
+						autocapitalize="off"
+						spellcheck="false"
+						data-lpignore="true"
+						data-1p-ignore="true"
+						data-form-type="other"
+					/>
+					<button id="fetchSecret" type="button" class="btn-primary">Obtener Secret</button>
+				</form>
+			</div>
+
+			<div id="viewRegistrar" class="view-panel panel hidden" role="tabpanel" hidden>
+				<h2 class="panelTitle">Registrar secret</h2>
+				<form id="registerSecretForm" class="no-cache-form" autocomplete="off" novalidate>
+					<input type="text" class="decoy-field" tabindex="-1" autocomplete="off" aria-hidden="true" />
+					<label for="registerSecretName">Nombre del Secret</label>
+					<input
+						type="text"
+						id="registerSecretName"
+						placeholder="Ej: NUEVO_SECRET"
+						autocomplete="off"
+						autocorrect="off"
+						autocapitalize="off"
+						spellcheck="false"
+						data-lpignore="true"
+						data-1p-ignore="true"
+						data-form-type="other"
+					/>
+					<label for="secretValue">Valor del Secret</label>
+					<div class="value-field-wrap">
+						<textarea
+							id="secretValue"
+							class="secret-scroll-field"
+							placeholder="Pega aqui el contenido (.env, JSON, etc.)"
+							autocomplete="off"
+							autocorrect="off"
+							autocapitalize="off"
+							spellcheck="false"
+							data-lpignore="true"
+							data-1p-ignore="true"
+							data-form-type="other"
+						></textarea>
+						<button type="button" id="pasteRegisterValue" class="btn-tool">Pegar</button>
+					</div>
+					<button id="addSecret" type="button" class="btn-primary">Registrar Secret</button>
+				</form>
+			</div>
+
+			<div id="viewListar" class="view-panel panel hidden" role="tabpanel" hidden>
+				<h2 class="panelTitle">Listar secrets</h2>
+				<p class="panelHint">Solo nombres. Haz clic en uno para ir a Obtener con ese nombre.</p>
+				<button id="listSecrets" type="button" class="btn-secondary">Listar nombres</button>
+				<ul id="secretNamesList" class="secret-names-list hidden" aria-label="Nombres de secrets"></ul>
+			</div>
+		</section>
+	</main>
+
+	<script>
+		const verifyButton = document.getElementById("verifyKey");
+		const masterInput = document.getElementById("masterKey");
+		const masterKeyForm = document.getElementById("masterKeyForm");
+		const secretSection = document.getElementById("secretSection");
+		const fetchButton = document.getElementById("fetchSecret");
+		const addButton = document.getElementById("addSecret");
+		const listButton = document.getElementById("listSecrets");
+		const appNav = document.getElementById("appNav");
+		const navTabs = [...appNav.querySelectorAll(".nav-tab")];
+		const viewObtener = document.getElementById("viewObtener");
+		const viewRegistrar = document.getElementById("viewRegistrar");
+		const viewListar = document.getElementById("viewListar");
+		const views = { obtener: viewObtener, registrar: viewRegistrar, listar: viewListar };
+		const secretNamesList = document.getElementById("secretNamesList");
+		const secretNameInput = document.getElementById("secretName");
+		const registerSecretNameInput = document.getElementById("registerSecretName");
+		const secretValueInput = document.getElementById("secretValue");
+		const fetchSecretForm = document.getElementById("fetchSecretForm");
+		const registerSecretForm = document.getElementById("registerSecretForm");
+		const secretOutput = document.getElementById("secretOutput");
+		const statusMessage = document.getElementById("statusMessage");
+		const secretValueCard = document.getElementById("secretValueCard");
+		const secretValueDisplay = document.getElementById("secretValueDisplay");
+		const pasteSecretDisplay = document.getElementById("pasteSecretDisplay");
+		const copySecretDisplay = document.getElementById("copySecretDisplay");
+		const pasteRegisterValue = document.getElementById("pasteRegisterValue");
+		const sessionTimer = document.getElementById("sessionTimer");
+
+		const SESSION_DURATION_SECONDS = 60;
+		const NO_STORE_FETCH = { cache: "no-store" };
+		let remainingSeconds = 0;
+		let sessionIntervalId = null;
+		let isSessionActive = false;
+		let sessionMasterKey = "";
+
+		const clearMasterKeyFromDom = () => {
+			masterInput.value = "";
+		};
+
+		const wipeSessionMasterKey = () => {
+			sessionMasterKey = "";
+			clearMasterKeyFromDom();
+		};
+
+		const preventInputCache = (input) => {
+			input.setAttribute("readonly", "readonly");
+			input.addEventListener("focus", () => {
+				input.removeAttribute("readonly");
+			}, { once: true });
+		};
+
+		const clearSensitiveInputs = () => {
+			secretNameInput.value = "";
+			registerSecretNameInput.value = "";
+			secretValueInput.value = "";
+			secretValueDisplay.value = "";
+		};
+
+		const hideSecretValueCard = () => {
+			secretValueCard.classList.add("hidden");
+			secretValueDisplay.value = "";
+		};
+
+		const pasteFromClipboard = async (target) => {
+			try {
+				const text = await navigator.clipboard.readText();
+				target.value = text;
+				target.focus();
+				return true;
+			} catch {
+				setStatus("No se pudo pegar. Permite acceso al portapapeles o pega manualmente (Ctrl+V).", "error");
+				return false;
+			}
+		};
+
+		const copyToClipboard = async (text) => {
+			try {
+				await navigator.clipboard.writeText(text);
+				return true;
+			} catch {
+				return false;
+			}
+		};
+
+		const clearSecretNamesList = () => {
+			secretNamesList.replaceChildren();
+			secretNamesList.classList.add("hidden");
+		};
+
+		const renderSecretNamesList = (names) => {
+			secretNamesList.replaceChildren();
+			if (!names.length) {
+				const empty = document.createElement("li");
+				empty.className = "secret-name-empty";
+				empty.textContent = "No hay secrets registrados.";
+				secretNamesList.appendChild(empty);
+			} else {
+				for (const name of names) {
+					const item = document.createElement("li");
+					const button = document.createElement("button");
+					button.type = "button";
+					button.className = "secret-name-item";
+					button.textContent = name;
+					button.addEventListener("click", () => {
+						secretNameInput.value = name;
+						switchView("obtener");
+						secretNameInput.focus();
+					});
+					item.appendChild(button);
+					secretNamesList.appendChild(item);
+				}
+			}
+			secretNamesList.classList.remove("hidden");
+		};
+
+		[masterInput, secretNameInput, registerSecretNameInput, secretValueInput, secretValueDisplay].forEach(preventInputCache);
+
+		pasteSecretDisplay.addEventListener("click", () => pasteFromClipboard(secretValueDisplay));
+		copySecretDisplay.addEventListener("click", async () => {
+			const text = secretValueDisplay.value;
+			if (!text) {
+				statusMessage.textContent = "No hay contenido para copiar.";
+				secretOutput.classList.remove("success");
+				secretOutput.classList.add("error");
+				return;
+			}
+			const copied = await copyToClipboard(text);
+			statusMessage.textContent = copied
+				? "Contenido copiado al portapapeles."
+				: "No se pudo copiar al portapapeles.";
+			secretOutput.classList.toggle("error", !copied);
+			secretOutput.classList.toggle("success", copied);
+		});
+		pasteRegisterValue.addEventListener("click", () => pasteFromClipboard(secretValueInput));
+
+		masterKeyForm.addEventListener("submit", (event) => {
+			event.preventDefault();
+			verifyButton.click();
+		});
+
+		fetchSecretForm.addEventListener("submit", (event) => {
+			event.preventDefault();
+			fetchButton.click();
+		});
+
+		registerSecretForm.addEventListener("submit", (event) => {
+			event.preventDefault();
+			addButton.click();
+		});
+
+		const switchView = (viewName) => {
+			for (const tab of navTabs) {
+				const isActive = tab.dataset.view === viewName;
+				tab.classList.toggle("active", isActive);
+				tab.setAttribute("aria-selected", String(isActive));
+			}
+
+			for (const [name, panel] of Object.entries(views)) {
+				const isActive = name === viewName;
+				panel.classList.toggle("hidden", !isActive);
+				panel.hidden = !isActive;
+			}
+		};
+
+		navTabs.forEach((tab) => {
+			tab.addEventListener("click", () => switchView(tab.dataset.view));
+		});
+
+		const setStatus = (message, kind) => {
+			hideSecretValueCard();
+			statusMessage.textContent = message;
+			statusMessage.classList.remove("hidden");
+			secretOutput.classList.remove("pending", "success", "error");
+			if (kind) {
+				secretOutput.classList.add(kind);
+			}
+		};
+
+		const showSecretValue = (value) => {
+			statusMessage.textContent = "Secret value:";
+			statusMessage.classList.remove("hidden");
+			secretValueDisplay.value = value;
+			secretValueCard.classList.remove("hidden");
+			secretOutput.classList.remove("pending", "error");
+			secretOutput.classList.add("success");
+		};
+
+		const stopSessionTimer = () => {
+			if (sessionIntervalId !== null) {
+				clearInterval(sessionIntervalId);
+				sessionIntervalId = null;
+			}
+		};
+
+		const renderTimer = () => {
+			if (!isSessionActive) {
+				sessionTimer.classList.add("hidden");
+				sessionTimer.classList.remove("warning");
+				sessionTimer.textContent = "Tiempo restante: 60s";
+				return;
+			}
+
+			sessionTimer.classList.remove("hidden");
+			sessionTimer.textContent = `Tiempo restante: ${remainingSeconds}s`;
+			sessionTimer.classList.toggle("warning", remainingSeconds <= 15);
+		};
+
+		const lockSession = (message) => {
+			isSessionActive = false;
+			remainingSeconds = 0;
+			stopSessionTimer();
+			secretSection.style.display = "none";
+			fetchButton.disabled = true;
+			addButton.disabled = true;
+			listButton.disabled = true;
+			wipeSessionMasterKey();
+			clearSensitiveInputs();
+			clearSecretNamesList();
+			appNav.classList.add("hidden");
+			switchView("obtener");
+			masterInput.disabled = false;
+			verifyButton.disabled = false;
+			renderTimer();
+
+			if (message) {
+				setStatus(message, "error");
+			}
+		};
+
+		const startSession = () => {
+			isSessionActive = true;
+			remainingSeconds = SESSION_DURATION_SECONDS;
+			secretSection.style.display = "block";
+			appNav.classList.remove("hidden");
+			switchView("obtener");
+			fetchButton.disabled = false;
+			addButton.disabled = false;
+			listButton.disabled = false;
+			masterInput.disabled = true;
+			verifyButton.disabled = true;
+			renderTimer();
+			stopSessionTimer();
+
+			sessionIntervalId = setInterval(() => {
+				remainingSeconds -= 1;
+				if (remainingSeconds <= 0) {
+					lockSession("Tiempo expirado. Vuelve a validar la Master Key.");
+					return;
+				}
+				renderTimer();
+			}, 1000);
+		};
+
+		fetchButton.disabled = true;
+		addButton.disabled = true;
+		listButton.disabled = true;
+		renderTimer();
+
+		// Verifica la Master Key contra el Worker antes de habilitar la consulta
+		verifyButton.addEventListener("click", async () => {
+			const masterKeyCandidate = masterInput.value.trim();
+			if (!masterKeyCandidate) {
+				setStatus("Ingresa la Master Key para continuar.", "error");
+				return;
+			}
+
+			verifyButton.disabled = true;
+			setStatus("Validando Master Key...", "pending");
+
+			try {
+				const resp = await fetch("/verify-master-key", {
+					...NO_STORE_FETCH,
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ masterKey: masterKeyCandidate })
 				});
 
-			const button = document.getElementById("button");
-			button.addEventListener("click", () => {
-				fetch('/random')
-					.then((resp) => resp.text())
-					.then((text) => {
-						const random = document.getElementById('random');
-						random.textContent = text;
-					});
-			});
-		</script>
-	</body>
+				const message = (await resp.text()).trim() || "Sin detalle de error.";
+
+				if (!resp.ok) {
+					if (resp.status === 403) {
+						setStatus("Master Key incorrecta", "error");
+						verifyButton.disabled = false;
+						return;
+					}
+
+					setStatus(`Error ${resp.status}: ${message}`, "error");
+					verifyButton.disabled = false;
+					return;
+				}
+
+				sessionMasterKey = masterKeyCandidate;
+				clearMasterKeyFromDom();
+				startSession();
+				setStatus("Master Key valida. Tienes 60 segundos para usar los secrets.", "success");
+			} catch (err) {
+				setStatus(`Error de red: ${err instanceof Error ? err.message : "No se pudo validar la Master Key."}`, "error");
+				verifyButton.disabled = false;
+			}
+		});
+
+		// Consulta el secret
+		fetchButton.addEventListener("click", async () => {
+			if (!isSessionActive || !sessionMasterKey) {
+				setStatus("Sesion bloqueada. Vuelve a validar la Master Key.", "error");
+				return;
+			}
+
+			const secretName = secretNameInput.value.trim();
+			if (!secretName) {
+				setStatus("Ingresa un nombre de secret.", "error");
+				return;
+			}
+
+			setStatus("Consultando secret...", "pending");
+
+			try {
+				const resp = await fetch("/get-secret", {
+					...NO_STORE_FETCH,
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						masterKey: sessionMasterKey,
+						secretName
+					})
+				});
+
+				const message = (await resp.text()).trim() || "Sin detalle de error.";
+
+				if (!resp.ok) {
+					if (resp.status === 403) {
+						lockSession("Master Key incorrecta");
+						return;
+					}
+
+					setStatus(`Error ${resp.status}: ${message}`, "error");
+					return;
+				}
+
+				showSecretValue(message);
+			} catch (err) {
+				setStatus(`Error de red: ${err instanceof Error ? err.message : "No se pudo completar la solicitud."}`, "error");
+			}
+		});
+
+		listButton.addEventListener("click", async () => {
+			if (!isSessionActive || !sessionMasterKey) {
+				setStatus("Sesion bloqueada. Vuelve a validar la Master Key.", "error");
+				return;
+			}
+
+			setStatus("Listando nombres de secrets...", "pending");
+			listButton.disabled = true;
+			clearSecretNamesList();
+
+			try {
+				const resp = await fetch("/list-secrets", {
+					...NO_STORE_FETCH,
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({ masterKey: sessionMasterKey })
+				});
+
+				if (!resp.ok) {
+					const message = (await resp.text()).trim() || "Sin detalle de error.";
+					if (resp.status === 403) {
+						lockSession("Master Key incorrecta");
+						return;
+					}
+					setStatus(`Error ${resp.status}: ${message}`, "error");
+					listButton.disabled = false;
+					return;
+				}
+
+				const data = await resp.json();
+				const names = Array.isArray(data.secrets) ? data.secrets : [];
+				renderSecretNamesList(names);
+				setStatus(`${names.length} secret(s) encontrado(s).`, "success");
+				listButton.disabled = false;
+			} catch (err) {
+				setStatus(`Error de red: ${err instanceof Error ? err.message : "No se pudo listar los secrets."}`, "error");
+				listButton.disabled = false;
+			}
+		});
+
+		addButton.addEventListener("click", async () => {
+			if (!isSessionActive || !sessionMasterKey) {
+				setStatus("Sesion bloqueada. Vuelve a validar la Master Key.", "error");
+				return;
+			}
+
+			const secretName = registerSecretNameInput.value.trim();
+			const secretValue = secretValueInput.value.trim();
+			if (!secretName) {
+				setStatus("Ingresa el nombre del secret en Registrar.", "error");
+				return;
+			}
+			if (!secretValue) {
+				setStatus("Ingresa el valor del secret para registrarlo.", "error");
+				return;
+			}
+
+			setStatus("Registrando secret...", "pending");
+			addButton.disabled = true;
+
+			try {
+				const resp = await fetch("/add-secret", {
+					...NO_STORE_FETCH,
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify({
+						masterKey: sessionMasterKey,
+						secretName,
+						secretValue
+					})
+				});
+
+				const message = (await resp.text()).trim() || "Sin detalle de error.";
+
+				if (!resp.ok) {
+					if (resp.status === 403) {
+						lockSession("Master Key incorrecta");
+						return;
+					}
+
+					setStatus(`Error ${resp.status}: ${message}`, "error");
+					addButton.disabled = false;
+					return;
+				}
+
+				secretValueInput.value = "";
+				registerSecretNameInput.value = "";
+				setStatus(message, "success");
+				addButton.disabled = false;
+			} catch (err) {
+				setStatus(`Error de red: ${err instanceof Error ? err.message : "No se pudo agregar el secret."}`, "error");
+				addButton.disabled = false;
+			}
+		});
+	</script>
+</body>
 </html>
