@@ -435,6 +435,7 @@ button:disabled {
 
 .secret-value-card {
 	margin-top: 10px;
+	overflow: visible;
 }
 
 .secret-value-card.hidden {
@@ -487,6 +488,16 @@ button:disabled {
 	white-space: pre;
 	word-break: break-word;
 	box-sizing: border-box;
+}
+
+#secretValueDisplay.secret-scroll-field {
+	resize: vertical;
+	width: 100%;
+	min-width: 100%;
+	max-width: 100%;
+	min-height: var(--secret-scroll-height);
+	max-height: none;
+	height: var(--secret-display-height, var(--secret-scroll-height));
 }
 
 .secret-scroll-field:focus {
@@ -565,7 +576,20 @@ button:disabled {
 	display: none;
 }
 
+#masterKeyForm.hidden {
+	display: none;
+}
+
 @media (min-width: 660px) {
+	.card {
+		width: min(100%, 920px);
+		padding: 32px 40px;
+	}
+
+	:root {
+		--secret-display-height: 380px;
+	}
+
 	.row {
 		grid-template-columns: 1fr auto;
 		align-items: end;
@@ -577,6 +601,17 @@ button:disabled {
 		margin-top: 0;
 	}
 
+}
+
+@media (min-width: 1100px) {
+	.card {
+		width: min(100%, 1080px);
+		padding: 36px 48px;
+	}
+
+	:root {
+		--secret-display-height: 460px;
+	}
 }
 
 @media (max-width: 659px) {

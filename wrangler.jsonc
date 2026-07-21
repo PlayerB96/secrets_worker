@@ -20,8 +20,7 @@
 	"kv_namespaces": [
 		{
 			"binding": "SECRETS_KV",
-			"id": "6734351147cc4d0db85982baad549567",
-			"remote": true
+			"id": "ac6e4bb15a6647b78487ec655cd9f129"
 		}
 	]
 	/**

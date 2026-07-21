@@ -58,7 +58,7 @@
 					<button id="verifyKey" type="button">Verificar</button>
 				</div>
 			</form>
-			<p id="sessionTimer" class="timer hidden" aria-live="polite">Tiempo restante: 60s</p>
+			<p id="sessionTimer" class="timer hidden" aria-live="polite">Tiempo restante: 5:00</p>
 		</section>
 
 		<div id="secretOutput" class="status section" aria-live="polite" data-delay="2">
@@ -183,7 +183,7 @@
 		const pasteRegisterValue = document.getElementById("pasteRegisterValue");
 		const sessionTimer = document.getElementById("sessionTimer");
 
-		const SESSION_DURATION_SECONDS = 60;
+		const SESSION_DURATION_SECONDS = 300;
 		const NO_STORE_FETCH = { cache: "no-store" };
 		let remainingSeconds = 0;
 		let sessionIntervalId = null;
@@ -413,17 +413,23 @@
 			}
 		};
 
+		const formatRemainingTime = (seconds) => {
+			const mins = Math.floor(seconds / 60);
+			const secs = seconds % 60;
+			return `${mins}:${String(secs).padStart(2, "0")}`;
+		};
+
 		const renderTimer = () => {
 			if (!isSessionActive) {
 				sessionTimer.classList.add("hidden");
 				sessionTimer.classList.remove("warning");
-				sessionTimer.textContent = "Tiempo restante: 60s";
+				sessionTimer.textContent = `Tiempo restante: ${formatRemainingTime(SESSION_DURATION_SECONDS)}`;
 				return;
 			}
 
 			sessionTimer.classList.remove("hidden");
-			sessionTimer.textContent = `Tiempo restante: ${remainingSeconds}s`;
-			sessionTimer.classList.toggle("warning", remainingSeconds <= 15);
+			sessionTimer.textContent = `Tiempo restante: ${formatRemainingTime(remainingSeconds)}`;
+			sessionTimer.classList.toggle("warning", remainingSeconds <= 30);
 		};
 
 		const lockSession = (message) => {
@@ -439,6 +445,7 @@
 			clearSecretNamesList();
 			appNav.classList.add("hidden");
 			switchView("obtener");
+			masterKeyForm.classList.remove("hidden");
 			masterInput.disabled = false;
 			verifyButton.disabled = false;
 			renderTimer();
@@ -457,6 +464,7 @@
 			fetchButton.disabled = false;
 			addButton.disabled = false;
 			listButton.disabled = false;
+			masterKeyForm.classList.add("hidden");
 			masterInput.disabled = true;
 			verifyButton.disabled = true;
 			renderTimer();
@@ -513,7 +521,7 @@
 				sessionMasterKey = masterKeyCandidate;
 				clearMasterKeyFromDom();
 				startSession();
-				setStatus("Master Key valida. Tienes 60 segundos para usar los secrets.", "success");
+				setStatus("Master Key valida. Tienes 5 minutos para usar los secrets.", "success");
 			} catch (err) {
 				setStatus(`Error de red: ${err instanceof Error ? err.message : "No se pudo validar la Master Key."}`, "error");
 				verifyButton.disabled = false;
